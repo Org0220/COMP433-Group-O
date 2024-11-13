@@ -1,6 +1,10 @@
 #Dataset files
-Huron_data/Sliced_images/
-Huron_data/Sliced_masks/
+Sliced_Images/
+test/
+train/
+val/
+.idea/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

@@ -1,7 +1,0 @@
-0 = Preview Tiles Small Fragmented tissue
-1 = Preview Tiles Small One Piece Tissue
-2 = Preview Tiles with No Tissue
-3 = Preview Tiles with Some Faint Tissue
-4 = Preview Tiles_Faint Tissue
-5 = Preview Tiles_Ink Marks
-6 = Preview Tiles_Large Solid Tissue
