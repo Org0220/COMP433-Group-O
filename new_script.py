@@ -159,7 +159,7 @@ val_test_transform = transforms.Compose([
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torchvision import models
+from torchvision import models, datasets
 import copy
 
 class BYOL(nn.Module):
@@ -287,6 +287,8 @@ def get_base_encoder():
     base_encoder.fc = nn.Identity()  # Remove the original classification head
     return base_encoder, feature_dim
 
+from torch.utils.data import Dataset, DataLoader
+
 class BYOLDataset(Dataset):
     def __init__(self, dataset, transform):
         self.dataset = dataset
@@ -297,18 +299,17 @@ class BYOLDataset(Dataset):
 
     def __getitem__(self, idx):
         image, label = self.dataset[idx]
-        # Convert to RGB if needed
-        image = image.convert('RGB')
         
         # Apply the BYOL transform twice to get two different augmented views
         img1 = self.transform(image)
         img2 = self.transform(image)
         
         return img1, img2
-
+    
 # Instantiate the BYOL model
 base_encoder, feature_dim = get_base_encoder()
 byol_model = BYOL(base_encoder=base_encoder, feature_dim=feature_dim)
+# byol_model = torch.utils.checkpoint.checkpoint_sequential(byol_model, segments=3)
 
 # ----------------------------------------------
 # Commented Out: Loading Pretrained BYOL Weights
@@ -336,33 +337,37 @@ byol_model.train()
 # Assuming you have your dataset ready and transformations applied
 import torch.optim as optim
 from sklearn.model_selection import train_test_split
-
+torch.cuda.empty_cache()
 # Hyperparameters
 learning_rate = 1e-3  # You can experiment with this
 batch_size = 32  # Adjust based on your dataset size and GPU memory
 num_epochs = 100  # Adjust based on your training needs
 
+image_folder_dataset = datasets.ImageFolder(root='train')
 # Create DataLoader for your dataset
-train_dataset = ...  # Your dataset here
-train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+train_dataset = BYOLDataset(dataset=image_folder_dataset, transform=byol_transform)  # Your dataset here
+train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 
 # Initialize optimizer
 optimizer = optim.Adam(byol_model.parameters(), lr=learning_rate)
 
 # Training loop
 for epoch in range(num_epochs):
-    byol_model.train()  # Set model to training mode
+    byol_model.train()
     total_loss = 0.0
-    
-    for x1, x2 in train_loader:  # Assuming your DataLoader yields pairs of augmented images
-        optimizer.zero_grad()  # Zero the gradients
+
+    for x1, x2 in train_loader:
+        print(f"X1: {x1.shape}, X2: {x2.shape}")
+        # Move the inputs to the same device as the model
+        x1, x2 = x1.to(device), x2.to(device)
         
+        optimizer.zero_grad()  # Clear gradients
         loss = byol_model(x1, x2)  # Forward pass
-        loss.backward()  # Backward pass
-        optimizer.step()  # Update weights
+        loss.backward()  # Backpropagation
+        optimizer.step()  # Update model weights
         
         total_loss += loss.item()
-    
+
     avg_loss = total_loss / len(train_loader)
     print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {avg_loss:.4f}")
 
