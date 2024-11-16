@@ -1,32 +1,37 @@
 import random
 import numpy as np
 import torch
+import os
 
-def set_seed(seed=69):
+
+def set_seed(seed=100):
     """
     Sets the seed for generating random numbers to ensure reproducibility.
 
     Args:
-        seed (int): The seed value to use. Default is 42.
+        seed (int): The seed value to use. Default is 100.
     """
-    random.seed(seed)                     # Python random module
-    np.random.seed(seed)                  # NumPy
-    torch.manual_seed(seed)               # PyTorch CPU
-    torch.cuda.manual_seed(seed)          # PyTorch GPU
-    torch.cuda.manual_seed_all(seed)      # If using multi-GPU
+    random.seed(seed)  # Python random module
+    np.random.seed(seed)  # NumPy
+    torch.manual_seed(seed)  # PyTorch CPU
+    torch.cuda.manual_seed(seed)  # PyTorch GPU
+    torch.cuda.manual_seed_all(seed)  # If using multi-GPU
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
+
 
 class EarlyStopping:
     """
     Early stops the training if the loss doesn't improve after a given patience.
+    Additionally, manages saving and loading of training state.
     """
-    def __init__(self, patience=10, verbose=False, delta=0):
+    def __init__(self, patience=5, verbose=False, delta=0, run_dir=None):
         """
         Args:
             patience (int): How long to wait after last time loss improved.
             verbose (bool): If True, prints a message for each loss improvement.
             delta (float): Minimum change in the monitored quantity to qualify as an improvement.
+            run_dir (str): Directory path where the best model is saved.
         """
         self.patience = patience
         self.verbose = verbose
@@ -34,12 +39,13 @@ class EarlyStopping:
         self.counter = 0
         self.best_loss = None
         self.early_stop = False
-        self.best_model_path = None
+        self.run_dir = run_dir
+        self.best_model_path = os.path.join(run_dir, 'best_byol_model.pth') if run_dir else 'best_byol_model.pth'
 
-    def __call__(self, loss, model, save_path='best_byol_model.pth'):
+    def __call__(self, loss, model, optimizer, scheduler, scaler, epoch):
         if self.best_loss is None:
             self.best_loss = loss
-            self.save_checkpoint(model, save_path)
+            self.save_checkpoint(model, optimizer, scheduler, scaler, epoch)
         elif loss > self.best_loss - self.delta:
             self.counter += 1
             if self.verbose:
@@ -48,11 +54,34 @@ class EarlyStopping:
                 self.early_stop = True
         else:
             self.best_loss = loss
-            self.save_checkpoint(model, save_path)
+            self.save_checkpoint(model, optimizer, scheduler, scaler, epoch)
             self.counter = 0
 
-    def save_checkpoint(self, model, save_path):
-        """Saves model when loss decreases."""
-        torch.save(model.state_dict(), save_path)
+    def save_checkpoint(self, model, optimizer, scheduler, scaler, epoch):
+        """Saves model and training state when loss decreases."""
+        checkpoint = {
+            'model_state_dict': model.state_dict(),
+            'optimizer_state_dict': optimizer.state_dict(),
+            'scheduler_state_dict': scheduler.state_dict(),
+            'scaler_state_dict': scaler.state_dict(),
+            'epoch': epoch,
+            'best_loss': self.best_loss,
+            'early_stopping_counter': self.counter
+        }
+        torch.save(checkpoint, self.best_model_path)
         if self.verbose:
-            print(f'Validation loss decreased. Saving model to {save_path}')
+            print(f'Validation loss decreased. Saving model to {self.best_model_path}')
+
+    def load_checkpoint(self, model, optimizer, scheduler, scaler, map_location):
+        """Loads model and training state from the checkpoint."""
+        if os.path.exists(self.best_model_path):
+            checkpoint = torch.load(self.best_model_path, map_location=map_location)
+            model.load_state_dict(checkpoint['model_state_dict'])
+            optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+            scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
+            scaler.load_state_dict(checkpoint['scaler_state_dict'])
+            self.best_loss = checkpoint['best_loss']
+            self.counter = checkpoint['early_stopping_counter']
+            print(f"Loaded checkpoint from {self.best_model_path} at epoch {checkpoint['epoch']} with best loss {self.best_loss:.4f}")
+        else:
+            print(f"No checkpoint found at {self.best_model_path}. Starting fresh.")
