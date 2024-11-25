@@ -5,8 +5,41 @@ from torchvision import models
 from torchvision.models import ResNet50_Weights  # Import ResNet50_Weights
 import copy
 
+
+class SupervisedModel(nn.Module):
+    def __init__(self, encoder, feature_dim, num_classes):
+        """
+        Initializes the supervised model by attaching a classifier head to the encoder.
+
+        Args:
+            encoder (nn.Module): The pretrained encoder (from BYOL).
+            feature_dim (int): Dimensionality of the encoder's output features.
+            num_classes (int): Number of target classes.
+        """
+        super(SupervisedModel, self).__init__()
+        self.encoder = encoder
+        self.classifier = nn.Linear(feature_dim, num_classes)
+
+    def forward(self, x):
+        """
+        Forward pass for supervised training.
+
+        Args:
+            x (Tensor): Input tensor.
+
+        Returns:
+            logits (Tensor): Output logits for classification.
+        """
+        features = self.encoder(x)
+        if len(features.shape) > 2:
+            features = features.squeeze(-1).squeeze(-1)
+        return self.classifier(features)
+
+
 class BYOL(nn.Module):
-    def __init__(self, base_encoder, feature_dim=2048, projection_dim=256, hidden_dim=4096):
+    def __init__(
+        self, base_encoder, feature_dim=2048, projection_dim=256, hidden_dim=4096
+    ):
         """
         Initializes the BYOL model.
 
@@ -17,34 +50,34 @@ class BYOL(nn.Module):
             hidden_dim (int): The dimensionality of the hidden layer in the projector and predictor.
         """
         super(BYOL, self).__init__()
-        
+
         self.feature_dim = feature_dim  # e.g., 2048 for ResNet-50
-        
+
         # Online network
         self.online_encoder = base_encoder
         self.online_projector = nn.Sequential(
             nn.Linear(self.feature_dim, hidden_dim),
             nn.BatchNorm1d(hidden_dim),
             nn.ReLU(),
-            nn.Linear(hidden_dim, projection_dim)
+            nn.Linear(hidden_dim, projection_dim),
         )
         self.online_predictor = nn.Sequential(
             nn.Linear(projection_dim, hidden_dim),
             nn.BatchNorm1d(hidden_dim),
             nn.ReLU(),
-            nn.Linear(hidden_dim, projection_dim)
+            nn.Linear(hidden_dim, projection_dim),
         )
-        
+
         # Target network: create a deep copy of the online encoder
         self.target_encoder = copy.deepcopy(base_encoder)
         for param in self.target_encoder.parameters():
             param.requires_grad = False  # Freeze target encoder parameters
-        
+
         self.target_projector = nn.Sequential(
             nn.Linear(self.feature_dim, hidden_dim),
             nn.BatchNorm1d(hidden_dim),
             nn.ReLU(),
-            nn.Linear(hidden_dim, projection_dim)
+            nn.Linear(hidden_dim, projection_dim),
         )
         for param in self.target_projector.parameters():
             param.requires_grad = False  # Freeze target projector parameters
@@ -55,15 +88,13 @@ class BYOL(nn.Module):
     @torch.no_grad()
     def _update_target_network(self, tau):
         """
-        Update target network parameters as an exponential moving average of online network parameters.
-
-        Args:
-            tau (float): Momentum parameter for updating the target network.
+        Update target network parameters deterministically
         """
-        for param_o, param_t in zip(self.online_encoder.parameters(), self.target_encoder.parameters()):
-            param_t.data = tau * param_t.data + (1 - tau) * param_o.data
-        for param_o, param_t in zip(self.online_projector.parameters(), self.target_projector.parameters()):
-            param_t.data = tau * param_t.data + (1 - tau) * param_o.data
+        with torch.no_grad():
+            for param_o, param_t in zip(self.online_encoder.parameters(), self.target_encoder.parameters()):
+                param_t.data = tau * param_t.data + (1 - tau) * param_o.data
+            for param_o, param_t in zip(self.online_projector.parameters(), self.target_projector.parameters()):
+                param_t.data = tau * param_t.data + (1 - tau) * param_o.data
 
     def forward(self, x1, x2):
         """
@@ -96,8 +127,10 @@ class BYOL(nn.Module):
             target_proj2 = self.target_projector(target_rep2)
 
         # Compute BYOL loss
-        loss = self.loss_fn(online_pred1, target_proj2) + self.loss_fn(online_pred2, target_proj1)
-        
+        loss = self.loss_fn(online_pred1, target_proj2) + self.loss_fn(
+            online_pred2, target_proj1
+        )
+
         # Update target network with momentum
         self._update_target_network(tau=0.99)
 
@@ -116,23 +149,33 @@ class BYOL(nn.Module):
         """
         p = F.normalize(p, dim=1)
         z = F.normalize(z, dim=1)
-        return 2 - 2 * (p * z).sum(dim=1).mean()
+        cosine_sim = (p * z).sum(dim=1).mean()
+        loss = 2 - 2 * cosine_sim
+        return loss
+
 
 def get_base_encoder(pretrained=True):
     """
-    Initializes a ResNet-50 encoder.
-
+    Initializes the ResNet encoder and returns it along with its feature dimension.
+    
     Args:
-        pretrained (bool): If True, loads ImageNet pretrained weights.
-
+        pretrained (bool): If True, returns a model pre-trained on ImageNet.
+        
     Returns:
-        nn.Module: ResNet-50 model with the final fc layer replaced by Identity.
-        int: Feature dimension of the encoder.
+        encoder (nn.Module): The ResNet encoder without the final fully connected layer.
+        feature_dim (int): The dimensionality of the encoder's output features.
     """
+    # Use the new weights enum for ResNet50
     if pretrained:
-        base_encoder = models.resnet50(weights=ResNet50_Weights.DEFAULT)  # Updated parameter
+        weights = ResNet50_Weights.DEFAULT
     else:
-        base_encoder = models.resnet50(weights=None)  # No pretrained weights
-    feature_dim = base_encoder.fc.in_features  # Typically 2048 for ResNet-50
-    base_encoder.fc = nn.Identity()  # Remove the original classification head
-    return base_encoder, feature_dim
+        weights = None
+        
+    model = models.resnet50(weights=weights)
+    # Get the feature dimension before modifying the model
+    feature_dim = model.fc.in_features  # Typically 2048 for ResNet-50
+    
+    # Remove the final fully connected layer
+    model.fc = nn.Identity()  # Replace with Identity instead of removing
+    
+    return model, feature_dim
