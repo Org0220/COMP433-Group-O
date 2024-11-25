@@ -110,7 +110,11 @@ def train_byol(run_dir, resume=False):
         byol_train_dataset,
         batch_size=BATCH_SIZE_BYOL,
         shuffle=True,
+<<<<<<< HEAD
         num_workers=0,  # Ensure this is set as per reproducibility needs
+=======
+        num_workers=0,  # Changed from 4 to 0 for reproducibility
+>>>>>>> a84567b6128cf7324bbd883bd6ccf501adc0795e
         pin_memory=True,
         worker_init_fn=worker_init,  # Use WorkerInitializer instance
         generator=g,
@@ -566,3 +570,31 @@ def train_supervised(run_dir, resume=False, num_classes=7, pretrained=True):
         writer.add_scalar(f"Test/Class_{class_idx}_Accuracy", accuracy, 0)
 
     return supervised_model
+<<<<<<< HEAD
+=======
+
+
+def create_data_loader(dataset, batch_size, is_train=True, seed=None):
+    """
+    Creates a DataLoader with reproducible behavior.
+    """
+    if seed is not None:
+        torch.manual_seed(seed)
+        
+    generator = torch.Generator()
+    if seed is not None:
+        generator.manual_seed(seed)
+    
+    worker_init = WorkerInitializer(base_seed=torch.initial_seed())
+    
+    return torch.utils.data.DataLoader(
+        dataset,
+        batch_size=batch_size,
+        shuffle=is_train,
+        num_workers=4,
+        pin_memory=True,
+        worker_init_fn=worker_init,
+        generator=generator,
+        persistent_workers=True
+    )
+>>>>>>> a84567b6128cf7324bbd883bd6ccf501adc0795e

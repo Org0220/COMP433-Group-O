@@ -60,11 +60,13 @@ class BYOL(nn.Module):
             nn.BatchNorm1d(hidden_dim),
             nn.ReLU(),
             nn.Linear(hidden_dim, projection_dim),
+            nn.Linear(hidden_dim, projection_dim),
         )
         self.online_predictor = nn.Sequential(
             nn.Linear(projection_dim, hidden_dim),
             nn.BatchNorm1d(hidden_dim),
             nn.ReLU(),
+            nn.Linear(hidden_dim, projection_dim),
             nn.Linear(hidden_dim, projection_dim),
         )
 
@@ -78,22 +80,30 @@ class BYOL(nn.Module):
             nn.BatchNorm1d(hidden_dim),
             nn.ReLU(),
             nn.Linear(hidden_dim, projection_dim),
+            nn.Linear(hidden_dim, projection_dim),
         )
         for param in self.target_projector.parameters():
             param.requires_grad = False  # Freeze target projector parameters
+        print("BYOL target encoder and projector initialized and frozen.")
 
         # Initialize target network to have the same weights as online network
         self._update_target_network(tau=1.0)
+        print("BYOL target network initialized with online network weights.")
 
     @torch.no_grad()
     def _update_target_network(self, tau):
         """
         Update target network parameters deterministically
+        Update target network parameters deterministically
         """
         with torch.no_grad():
-            for param_o, param_t in zip(self.online_encoder.parameters(), self.target_encoder.parameters()):
+            for param_o, param_t in zip(
+                self.online_encoder.parameters(), self.target_encoder.parameters()
+            ):
                 param_t.data = tau * param_t.data + (1 - tau) * param_o.data
-            for param_o, param_t in zip(self.online_projector.parameters(), self.target_projector.parameters()):
+            for param_o, param_t in zip(
+                self.online_projector.parameters(), self.target_projector.parameters()
+            ):
                 param_t.data = tau * param_t.data + (1 - tau) * param_o.data
 
     def forward(self, x1, x2):
@@ -131,6 +141,10 @@ class BYOL(nn.Module):
             online_pred2, target_proj1
         )
 
+        loss = self.loss_fn(online_pred1, target_proj2) + self.loss_fn(
+            online_pred2, target_proj1
+        )
+
         # Update target network with momentum
         self._update_target_network(tau=0.99)
 
@@ -157,25 +171,32 @@ class BYOL(nn.Module):
 def get_base_encoder(pretrained=True):
     """
     Initializes the ResNet encoder and returns it along with its feature dimension.
-    
+
+    Initializes the ResNet encoder and returns it along with its feature dimension.
+
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet.
-        
+
+        pretrained (bool): If True, returns a model pre-trained on ImageNet.
+
     Returns:
         encoder (nn.Module): The ResNet encoder without the final fully connected layer.
         feature_dim (int): The dimensionality of the encoder's output features.
+        encoder (nn.Module): The ResNet encoder without the final fully connected layer.
+        feature_dim (int): The dimensionality of the encoder's output features.
     """
+    # Use the new weights enum for ResNet50
     # Use the new weights enum for ResNet50
     if pretrained:
         weights = ResNet50_Weights.DEFAULT
     else:
         weights = None
-        
+
     model = models.resnet50(weights=weights)
     # Get the feature dimension before modifying the model
     feature_dim = model.fc.in_features  # Typically 2048 for ResNet-50
-    
+
     # Remove the final fully connected layer
     model.fc = nn.Identity()  # Replace with Identity instead of removing
-    
+
     return model, feature_dim
