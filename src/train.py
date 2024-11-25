@@ -30,15 +30,17 @@ from src.utils import set_seed
 def get_worker_init_fn(seed):
     """
     Returns a worker initialization function with a fixed seed.
-    
+
     Args:
         seed (int): Base seed for worker initialization
     """
+
     def worker_init_fn_fixed(worker_id):
         worker_seed = (seed + worker_id) % (2**32)
         random.seed(worker_seed)
         np.random.seed(worker_seed)
         torch.manual_seed(worker_seed)
+
     return worker_init_fn_fixed
 
 
@@ -60,7 +62,6 @@ def train_byol(run_dir, resume=False):
     tb_log_dir = os.path.join(run_dir, "tensorboard_logs")
     os.makedirs(tb_log_dir, exist_ok=True)
     writer = SummaryWriter(log_dir=tb_log_dir)
-    print(f"TensorBoard logs will be saved to: {tb_log_dir}")
 
     # Initialize the BYOL model
     base_encoder, feature_dim = get_base_encoder(pretrained=True)
@@ -68,18 +69,15 @@ def train_byol(run_dir, resume=False):
 
     # Move the model to the specified device
     byol_model = byol_model.to(DEVICE)
-    print(f"BYOL model moved to device: {DEVICE}")
 
     # Set the model to training mode
     byol_model.train()
 
     # Initialize optimizer
     optimizer = optim.Adam(byol_model.parameters(), lr=LEARNING_RATE, weight_decay=1e-5)
-    print(f"Optimizer initialized with learning rate: {LEARNING_RATE}")
 
     # Initialize scheduler without verbose to avoid warning
     scheduler = ReduceLROnPlateau(optimizer, mode="min", factor=0.5, patience=5)
-    print("Learning rate scheduler initialized: ReduceLROnPlateau")
 
     # Initialize EarlyStopping with run_dir for saving the best model
     early_stopping = EarlyStopping(
@@ -88,39 +86,30 @@ def train_byol(run_dir, resume=False):
 
     # Initialize GradScaler for mixed precision with device specified
     scaler = GradScaler(device=DEVICE)
-    print("GradScaler initialized for mixed precision training.")
 
     # Create BYOL training dataset and DataLoader
     pretrain_split_file = os.path.join(SPLITS_DIR, "train_unlabeled.txt")
     byol_train_dataset = BYOLDataset(
         image_dir=IMAGES_DIR, split_file=pretrain_split_file, transform=byol_transform
     )
-    print(f"BYOL training dataset created with {len(byol_train_dataset)} samples.")
 
     # Create deterministic generator with fixed seed
     g = torch.Generator()
     g.manual_seed(torch.initial_seed())
-    print(f"Generator seed set to: {torch.initial_seed()}")
 
     # Create worker initializer with fixed seed
     worker_init = WorkerInitializer(base_seed=torch.initial_seed())
-    print(f"WorkerInitializer initialized with base seed: {worker_init.base_seed}")
 
     byol_train_loader = BYOLDataLoader(
         byol_train_dataset,
         batch_size=BATCH_SIZE_BYOL,
         shuffle=True,
-<<<<<<< HEAD
-        num_workers=0,  # Ensure this is set as per reproducibility needs
-=======
-        num_workers=0,  # Changed from 4 to 0 for reproducibility
->>>>>>> a84567b6128cf7324bbd883bd6ccf501adc0795e
+        num_workers=4,  # Ensure this is set as per reproducibility needs
         pin_memory=True,
         worker_init_fn=worker_init,  # Use WorkerInitializer instance
         generator=g,
-        persistent_workers=False
+        persistent_workers=True,
     )
-    print("BYOL DataLoader initialized with num_workers=0 and deterministic workers.")
 
     start_epoch = 1  # Default start epoch
 
@@ -131,7 +120,9 @@ def train_byol(run_dir, resume=False):
         )
         # Retrieve last epoch from checkpoint
         try:
-            checkpoint = torch.load(early_stopping.best_model_path, map_location=DEVICE, weights_only=True)
+            checkpoint = torch.load(
+                early_stopping.best_model_path, map_location=DEVICE, weights_only=True
+            )
             start_epoch = checkpoint.get("epoch", 1) + 1
             print(f"Resuming from epoch {start_epoch}")
         except Exception as e:
@@ -171,7 +162,7 @@ def train_byol(run_dir, resume=False):
 
             # Update progress bar with current batch loss
             progress_bar.set_postfix({"Batch Loss": loss.item()})
-        
+
         print(f"Epoch {epoch} completed.")
 
         # Calculate average loss for the epoch
@@ -204,7 +195,9 @@ def train_byol(run_dir, resume=False):
     # Load the best model before proceeding with weights_only=True
     # Avoid loading the entire checkpoint into the model
     try:
-        checkpoint = torch.load(early_stopping.best_model_path, map_location=DEVICE, weights_only=True)
+        checkpoint = torch.load(
+            early_stopping.best_model_path, map_location=DEVICE, weights_only=True
+        )
         byol_model.load_state_dict(checkpoint["model_state_dict"])
         print("Loaded the best model for further training/evaluation.")
     except KeyError as e:
@@ -218,12 +211,12 @@ def train_byol(run_dir, resume=False):
 def evaluate_model(model, test_loader, device):
     """
     Evaluates the model on the test set.
-    
+
     Args:
         model (nn.Module): The trained model to evaluate
         test_loader (DataLoader): DataLoader for the test set
         device (torch.device): Device to run evaluation on
-        
+
     Returns:
         float: Test accuracy
         float: Test loss
@@ -233,25 +226,27 @@ def evaluate_model(model, test_loader, device):
     test_loss = 0
     correct = 0
     total = 0
-    
+
     # For per-class accuracy
     class_correct = {}
     class_total = {}
-    
+
     with torch.no_grad():
-        for inputs, labels in tqdm(test_loader, desc="Evaluating on test set", leave=True):
+        for inputs, labels in tqdm(
+            test_loader, desc="Evaluating on test set", leave=True
+        ):
             inputs = inputs.to(device)
             labels = labels.to(device)
-            
+
             with autocast(device_type=device.type):
                 outputs = model(inputs)
                 loss = nn.CrossEntropyLoss()(outputs, labels)
-            
+
             test_loss += loss.item()
             _, predicted = torch.max(outputs.data, 1)
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
-            
+
             # Calculate per-class accuracy
             for label, pred in zip(labels, predicted):
                 label_item = label.item()
@@ -261,24 +256,24 @@ def evaluate_model(model, test_loader, device):
                 class_total[label_item] += 1
                 if label_item == pred.item():
                     class_correct[label_item] += 1
-    
+
     # Calculate metrics
     test_accuracy = 100 * correct / total
     avg_test_loss = test_loss / len(test_loader)
-    
+
     # Calculate per-class accuracies
     per_class_accuracy = {
         class_idx: 100 * class_correct[class_idx] / class_total[class_idx]
         for class_idx in class_correct.keys()
     }
-    
+
     return test_accuracy, avg_test_loss, per_class_accuracy
 
 
 def train_supervised(run_dir, resume=False, num_classes=7, pretrained=True):
     """
     Trains the model in supervised fashion and saves checkpoints and TensorBoard logs.
-    
+
     Args:
         run_dir (str): Directory path where the run's artifacts will be saved.
         resume (bool): Whether to resume training from the last checkpoint.
@@ -292,7 +287,9 @@ def train_supervised(run_dir, resume=False, num_classes=7, pretrained=True):
     print(f"TensorBoard logs will be saved to: {tb_log_dir}")
 
     # Initialize the base encoder
-    base_encoder, feature_dim = get_base_encoder(pretrained=False)  # Initially no pretrained weights
+    base_encoder, feature_dim = get_base_encoder(
+        pretrained=False
+    )  # Initially no pretrained weights
 
     # Load the pretrained BYOL encoder
     checkpoint_path = os.path.join(run_dir, "best_byol_model.pth")
@@ -301,10 +298,10 @@ def train_supervised(run_dir, resume=False, num_classes=7, pretrained=True):
             checkpoint = torch.load(checkpoint_path, map_location=DEVICE)
             # First, get the online encoder's state dict
             byol_state_dict = checkpoint["model_state_dict"]
-            
+
             # Create a new state dict for the base encoder
             encoder_state_dict = {}
-            
+
             # Map BYOL keys to ResNet keys
             for key, value in byol_state_dict.items():
                 if key.startswith("online_encoder."):
@@ -312,15 +309,17 @@ def train_supervised(run_dir, resume=False, num_classes=7, pretrained=True):
                     new_key = key.replace("online_encoder.", "")
                     if new_key in base_encoder.state_dict():
                         encoder_state_dict[new_key] = value
-            
+
             # Check if we found any matching keys
             if len(encoder_state_dict) == 0:
                 raise ValueError("No matching keys found in BYOL checkpoint")
-                
+
             # Load the weights
             base_encoder.load_state_dict(encoder_state_dict, strict=False)
-            print(f"Successfully loaded {len(encoder_state_dict)} layers from BYOL checkpoint.")
-            
+            print(
+                f"Successfully loaded {len(encoder_state_dict)} layers from BYOL checkpoint."
+            )
+
         except Exception as e:
             print(f"Error loading BYOL weights: {e}")
             # If BYOL weights fail to load and pretrained=True, reinitialize with ImageNet weights
@@ -338,16 +337,24 @@ def train_supervised(run_dir, resume=False, num_classes=7, pretrained=True):
             print("Using random initialization...")
 
     # Initialize the supervised model with the loaded encoder
-    supervised_model = SupervisedModel(base_encoder, feature_dim, num_classes).to(DEVICE)
+    supervised_model = SupervisedModel(base_encoder, feature_dim, num_classes).to(
+        DEVICE
+    )
 
     # Initialize optimizer
-    optimizer = optim.Adam(supervised_model.parameters(), lr=LEARNING_RATE, weight_decay=1e-4)
+    optimizer = optim.Adam(
+        supervised_model.parameters(), lr=LEARNING_RATE, weight_decay=1e-4
+    )
 
     # Initialize scheduler
-    scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=5, verbose=True)
+    scheduler = ReduceLROnPlateau(
+        optimizer, mode="min", factor=0.5, patience=5, verbose=True
+    )
 
     # Initialize EarlyStopping
-    early_stopping = EarlyStopping(patience=10, verbose=True, delta=0.001, run_dir=run_dir)
+    early_stopping = EarlyStopping(
+        patience=10, verbose=True, delta=0.001, run_dir=run_dir
+    )
 
     # Initialize GradScaler for mixed precision
     scaler = GradScaler(device=DEVICE)
@@ -355,14 +362,14 @@ def train_supervised(run_dir, resume=False, num_classes=7, pretrained=True):
     # Create supervised training dataset and DataLoader using LabeledDataset
     train_split_file = os.path.join(SPLITS_DIR, "train_labeled.txt")
     val_split_file = os.path.join(SPLITS_DIR, "val_labeled.txt")
-    
+
     supervised_train_dataset = LabeledDataset(
         image_dir=IMAGES_DIR,
         labels_csv=LABELS_FILE,
         split_file=train_split_file,
         transform=byol_transform,
     )
-    
+
     supervised_val_dataset = LabeledDataset(
         image_dir=IMAGES_DIR,
         labels_csv=LABELS_FILE,
@@ -428,7 +435,7 @@ def train_supervised(run_dir, resume=False, num_classes=7, pretrained=True):
         for inputs, labels in progress_bar:
             inputs = inputs.to(DEVICE)
             labels = labels.to(DEVICE)
-            
+
             if len(labels.shape) > 1:
                 labels = labels.squeeze()
 
@@ -454,7 +461,7 @@ def train_supervised(run_dir, resume=False, num_classes=7, pretrained=True):
 
         avg_train_loss = epoch_loss / num_batches
         train_accuracy = 100 * train_correct / train_total
-        
+
         # Validation
         supervised_model.eval()
         val_loss = 0.0
@@ -482,7 +489,7 @@ def train_supervised(run_dir, resume=False, num_classes=7, pretrained=True):
 
         avg_val_loss = val_loss / len(supervised_val_loader)
         val_accuracy = 100 * correct / total
-        
+
         # Print epoch summary with both accuracies
         print(
             f"Epoch [{epoch}/{NUM_EPOCHS}] - "
@@ -502,7 +509,9 @@ def train_supervised(run_dir, resume=False, num_classes=7, pretrained=True):
         scheduler.step(avg_val_loss)
 
         # Early stopping check
-        early_stopping(avg_val_loss, supervised_model, optimizer, scheduler, scaler, epoch)
+        early_stopping(
+            avg_val_loss, supervised_model, optimizer, scheduler, scaler, epoch
+        )
         if early_stopping.early_stop:
             print("Early stopping triggered")
             break
@@ -527,7 +536,7 @@ def train_supervised(run_dir, resume=False, num_classes=7, pretrained=True):
         split_file=test_split_file,
         transform=byol_transform,
     )
-    
+
     test_loader = torch.utils.data.DataLoader(
         test_dataset,
         batch_size=BATCH_SIZE_SUPERVISED,
@@ -546,7 +555,7 @@ def train_supervised(run_dir, resume=False, num_classes=7, pretrained=True):
     print(f"Overall Test Accuracy: {test_accuracy:.2f}%")
     print(f"Overall Test Loss: {test_loss:.4f}")
     print("\nPer-class Test Accuracies:")
-    
+
     # Get class names from the dataset
     class_names = {v: k for k, v in test_dataset.class_to_idx.items()}
     for class_idx, accuracy in per_class_accuracy.items():
@@ -570,31 +579,3 @@ def train_supervised(run_dir, resume=False, num_classes=7, pretrained=True):
         writer.add_scalar(f"Test/Class_{class_idx}_Accuracy", accuracy, 0)
 
     return supervised_model
-<<<<<<< HEAD
-=======
-
-
-def create_data_loader(dataset, batch_size, is_train=True, seed=None):
-    """
-    Creates a DataLoader with reproducible behavior.
-    """
-    if seed is not None:
-        torch.manual_seed(seed)
-        
-    generator = torch.Generator()
-    if seed is not None:
-        generator.manual_seed(seed)
-    
-    worker_init = WorkerInitializer(base_seed=torch.initial_seed())
-    
-    return torch.utils.data.DataLoader(
-        dataset,
-        batch_size=batch_size,
-        shuffle=is_train,
-        num_workers=4,
-        pin_memory=True,
-        worker_init_fn=worker_init,
-        generator=generator,
-        persistent_workers=True
-    )
->>>>>>> a84567b6128cf7324bbd883bd6ccf501adc0795e

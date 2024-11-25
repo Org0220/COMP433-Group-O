@@ -30,10 +30,6 @@ def set_seed(seed, deterministic=True):
             print(f"Warning: Unable to enable deterministic mode: {e}")
             print("Training will continue with non-deterministic behavior")
 
-    print(f"Set all seeds to {seed}")
-    if deterministic:
-        print("Using deterministic algorithms (if available)")
-
 
 def get_worker_seed(worker_id, base_seed):
     """

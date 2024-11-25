@@ -60,13 +60,11 @@ class BYOL(nn.Module):
             nn.BatchNorm1d(hidden_dim),
             nn.ReLU(),
             nn.Linear(hidden_dim, projection_dim),
-            nn.Linear(hidden_dim, projection_dim),
         )
         self.online_predictor = nn.Sequential(
             nn.Linear(projection_dim, hidden_dim),
             nn.BatchNorm1d(hidden_dim),
             nn.ReLU(),
-            nn.Linear(hidden_dim, projection_dim),
             nn.Linear(hidden_dim, projection_dim),
         )
 
@@ -80,15 +78,12 @@ class BYOL(nn.Module):
             nn.BatchNorm1d(hidden_dim),
             nn.ReLU(),
             nn.Linear(hidden_dim, projection_dim),
-            nn.Linear(hidden_dim, projection_dim),
         )
         for param in self.target_projector.parameters():
             param.requires_grad = False  # Freeze target projector parameters
-        print("BYOL target encoder and projector initialized and frozen.")
 
         # Initialize target network to have the same weights as online network
         self._update_target_network(tau=1.0)
-        print("BYOL target network initialized with online network weights.")
 
     @torch.no_grad()
     def _update_target_network(self, tau):
@@ -137,10 +132,6 @@ class BYOL(nn.Module):
             target_proj2 = self.target_projector(target_rep2)
 
         # Compute BYOL loss
-        loss = self.loss_fn(online_pred1, target_proj2) + self.loss_fn(
-            online_pred2, target_proj1
-        )
-
         loss = self.loss_fn(online_pred1, target_proj2) + self.loss_fn(
             online_pred2, target_proj1
         )

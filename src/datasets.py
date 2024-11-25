@@ -4,17 +4,11 @@ from torch.utils.data import Dataset
 from PIL import Image
 import torch
 import hashlib
-import torch
-import hashlib
 
 
 class BYOLDataset(Dataset):
     def __init__(self, image_dir, split_file, transform=None):
         self.image_dir = image_dir
-        self.transform = transform
-        self.epoch = 0  # Add epoch tracking
-
-        # Read the split file
         self.transform = transform
         self.epoch = 0  # Add epoch tracking
 
@@ -33,31 +27,10 @@ class BYOLDataset(Dataset):
                 img_path = parts[0]
                 self.samples.append((img_path, None))
 
-        print(f"BYOLDataset initialized with {len(self.samples)} samples.")
-
-        lines = f.readlines()
-
-        # Parse the lines into image paths and labels
-        self.samples = []
-        for line in lines:
-            parts = line.strip().split(",")
-            if len(parts) == 2:  # If there's a label
-                img_path, label = parts
-                self.samples.append((img_path, int(label)))  # Convert label to int
-            else:  # If no label (for unlabeled data)
-                img_path = parts[0]
-                self.samples.append((img_path, None))
-
-        print(f"BYOLDataset initialized with {len(self.samples)} samples.")
-
     def __len__(self):
         return len(self.samples)
 
-        return len(self.samples)
-
     def __getitem__(self, idx):
-        img_path, label = self.samples[idx]
-        img_path = os.path.join(self.image_dir, img_path)
         img_path, label = self.samples[idx]
         img_path = os.path.join(self.image_dir, img_path)
         image = Image.open(img_path).convert("RGB")
@@ -106,20 +79,7 @@ class LabeledDataset(Dataset):
             for idx, name in enumerate(sorted(self.labels_df["Class"].unique()))
         }
 
-        self.image_files = [
-            line.strip().split(",")[0] for line in f.readlines()
-        ]  # Get just the image paths
-
-        # Create a mapping of class names to indices
-        self.class_to_idx = {
-            name: idx
-            for idx, name in enumerate(sorted(self.labels_df["Class"].unique()))
-        }
-
         self.transform = transform
-        print(f"LabeledDataset initialized with {len(self.image_files)} samples.")
-
-        print(f"LabeledDataset initialized with {len(self.image_files)} samples.")
 
     def __len__(self):
         return len(self.image_files)
@@ -132,12 +92,6 @@ class LabeledDataset(Dataset):
         img_name = self.image_files[idx]
         img_path = os.path.join(self.image_dir, img_name)
         image = Image.open(img_path).convert("RGB")
-
-        # Get class name and convert to index
-        class_name = self.labels_df.loc[
-            self.labels_df["Image"] == img_name, "Class"
-        ].values[0]
-        label = self.class_to_idx[class_name]
 
         # Get class name and convert to index
         class_name = self.labels_df.loc[

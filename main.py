@@ -58,7 +58,6 @@ def main():
             return
     else:
         os.makedirs(run_dir)
-        print(f"Created run directory at: {run_dir}")
         # Default to starting BYOL training for new runs
         resume_byol = False
         resume_supervised = False
@@ -90,7 +89,6 @@ def main():
     config_path = os.path.join(run_dir, "config.json")
     with open(config_path, "w") as f:
         json.dump(config, f, indent=4)
-    print(f"Configuration saved to: {config_path}")
 
     # Train the appropriate model based on run conditions
     if os.path.exists(run_dir) and mode_input:  # Check both conditions
