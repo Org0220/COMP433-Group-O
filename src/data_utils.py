@@ -32,15 +32,15 @@ def load_and_verify_data():
             print(f" - {img}")
         df = df[df['Image'].isin(image_filenames)]
         print(f"Filtered DataFrame to {len(df)} labeled images.")
-    else:
-        print("All labeled images are present in the Sliced_Images directory.")
+    # else:
+    #     print("All labeled images are present in the Sliced_Images directory.")
     
     # Summary
     unlabeled_images = image_filenames - excel_filenames
-    print(f"Total labeled images: {len(df)}")
-    print(f"Total images: {len(image_filenames)}")
-    print(f"Total unlabeled images: {len(unlabeled_images)}")
-    print(f"Found {df['Class'].nunique()} unique classes: {sorted(df['Class'].unique())}")
+    # print(f"Total labeled images: {len(df)}")
+    # print(f"Total images: {len(image_filenames)}")
+    # print(f"Total unlabeled images: {len(unlabeled_images)}")
+    # print(f"Found {df['Class'].nunique()} unique classes: {sorted(df['Class'].unique())}")
     
     return df, image_filenames, unlabeled_images
 
@@ -73,9 +73,9 @@ def split_data(df):
     X_test, y_test = X_temp.iloc[test_idx], y_temp.iloc[test_idx]
     
     # Print split sizes
-    print(f"Training set: {len(X_train)} images")
-    print(f"Validation set: {len(X_val)} images")
-    print(f"Test set: {len(X_test)} images")
+    # print(f"Training set: {len(X_train)} images")
+    # print(f"Validation set: {len(X_val)} images")
+    # print(f"Test set: {len(X_test)} images")
     
     return X_train, X_val, X_test
 
@@ -84,7 +84,7 @@ def save_split(file_list, filename):
     with open(filepath, 'w') as f:
         for item in file_list:
             f.write(f"{item}\n")
-    print(f"Saved {len(file_list)} entries to {filepath}")
+    # print(f"Saved {len(file_list)} entries to {filepath}")
 
 def create_and_save_splits(df, image_filenames, unlabeled_images):
     # Create splits directory
@@ -101,7 +101,6 @@ def create_and_save_splits(df, image_filenames, unlabeled_images):
     # Prepare pre-training split: Unlabeled + Train Labeled + Val Labeled
     pretrain_filenames = unlabeled_images.union(set(X_train.tolist())).union(set(X_val.tolist()))
     save_split(pretrain_filenames, 'train_unlabeled.txt')
-    print(f"Pre-training set size: {len(pretrain_filenames)} images")
 
 if __name__ == "__main__":
     df, image_filenames, unlabeled_images = load_and_verify_data()

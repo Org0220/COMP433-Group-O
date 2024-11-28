@@ -22,9 +22,8 @@ BATCH_SIZE_BYOL = 64
 BATCH_SIZE_SUPERVISED = 16
 
 # Training settings
-NUM_EPOCHS = 2
-LEARNING_RATE = 1e-3
-SEED = 69
+NUM_EPOCHS = 1
+LEARNING_RATE = 1e-4
 SAVE_PATH = os.path.join(DATA_DIR, 'best_byol_model.pth')
 
 # Device configuration
