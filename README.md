@@ -36,12 +36,28 @@ We are using the **Bootstrap Your Own Latent (BYOL)** methodology on top of an e
 
 1. **Dependencies**:
 
-   - Python 3.8+
-   - PyTorch (with GPU support recommended)
-   - torchvision
+   - Python 3.10+
+   - PyTorch (with GPU support)
    - Other libraries as indicated in `requirements.txt`
 
 2. **Installation**:
    ```bash
    pip install -r requirements.txt
    ```
+3. **Dataset Setup**:
+   - The dataset should be provided by the Huron team.
+   - Put the folder with Sliced_Images inside the repository directory
+   - The folder structure should look like this:
+   ```
+    HURONPROJECT
+    ├── Sliced_Images
+    ├── data
+    ├── runs
+    ├── src
+    ...
+   ```
+4. **Training**:
+   - run the main.py and it will ask you to enter a name for your working directory, then it will start training the model.
+   - The model will be saved in the runs directory with the name you entered.
+   - The training process will take a long time, so it is recommended to run it on a machine with a GPU.
+5. **Evaluation**:
