@@ -3,10 +3,9 @@ import torch
 
 # Base directory
 BASE_DIR = os.getcwd()
-
 # Data directories
-DATA_DIR = r'C:\Users\david\Documents\Coding\Python\comp433\HuronProject\data'
-IMAGES_DIR = r'C:\Users\david\Documents\Concordia\COMP433\Project_Data\Sliced_Images'  # Update as needed
+DATA_DIR = f'{BASE_DIR}\\data'
+IMAGES_DIR = f'{BASE_DIR}\\Sliced_Images'  # Update as needed
 LABELS_FILE = os.path.join(DATA_DIR, 'image_class_mapping.csv')
 
 # Splits directory
