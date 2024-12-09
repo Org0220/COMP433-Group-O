@@ -105,7 +105,8 @@ def main():
             )
     else:
         # Start BYOL training for new run
-        trained_model = train_byol(run_dir, resume=False)
+        mode_input = input("Choose training mode: [1] default resnet weights [2] BYOL specific resnet weights: ").strip()
+        trained_model = train_byol(run_dir, resume=False,  custom_resnet=True if mode_input == "2" else False)
 
     return trained_model
 

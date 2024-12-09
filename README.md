@@ -10,6 +10,14 @@ We're working on a project for image classification of tissue images into the fo
 - **Preview Tiles_Ink Marks**
 - **Preview Tiles_Large Solid Tissue**
 
+Tiles Small Fragmented Tissue
+Tiles Small One Piece Tissue
+Tiles with No Tissue
+Tiles with Some Faint Tissue
+Tiles Faint Tissue
+Tiles Ink Marks
+Tiles Large Solid Tissue
+
 This project leverages a semi-supervised approach to efficiently use unlabeled data for representation learning and then applies a classification head on top for supervised learning on labeled data.
 
 # Methodology
@@ -56,7 +64,6 @@ We are using the **Bootstrap Your Own Latent (BYOL)** methodology on top of an e
     ├── src
     ...
    ```
-   - download this file and put it in the data directory: https://drive.google.com/file/d/1M8l8b1WB66UIohbDBlUV2WDWIcz6nnAu/view?usp=sharing
 4. **Training**:
    - run the main.py and it will ask you to enter a name for your working directory, then it will start training the model.
    - The model will be saved in the runs directory with the name you entered.

@@ -159,7 +159,7 @@ class BYOL(nn.Module):
         return loss
 
 
-def get_base_encoder(pretrained=True):
+def get_base_encoder(pretrained=True, custom_resnet=True):
     """
     Initializes the ResNet encoder and returns it along with its feature dimension.
 
@@ -176,14 +176,24 @@ def get_base_encoder(pretrained=True):
         encoder (nn.Module): The ResNet encoder without the final fully connected layer.
         feature_dim (int): The dimensionality of the encoder's output features.
     """
-    # Use the new weights enum for ResNet50
-    # Use the new weights enum for ResNet50
-    if pretrained:
-        weights = ResNet50_Weights.DEFAULT
-    else:
-        weights = None
 
-    model = models.resnet50(weights=weights)
+    if custom_resnet:
+        # Use the custom ResNet model
+        model = models.resnet50(weights = None)
+        # Load the state dictionary
+        weights_path = 'data/pretrain_res50x1.pth'
+        state_dict = torch.load(weights_path, map_location='cpu')
+
+        # Load the weights into the model
+        model.load_state_dict(state_dict)
+    else:
+    # Use the new weights enum for ResNet50
+        if pretrained:
+            weights = ResNet50_Weights.DEFAULT
+        else:
+            weights = None
+
+        model = models.resnet50(weights=weights)
     # Get the feature dimension before modifying the model
     feature_dim = model.fc.in_features  # Typically 2048 for ResNet-50
 

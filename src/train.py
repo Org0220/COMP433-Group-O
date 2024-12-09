@@ -6,9 +6,11 @@ import os
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.optim.lr_scheduler import CosineAnnealingLR
 from torch.amp import GradScaler, autocast
+from sklearn.metrics import confusion_matrix
 from torch.utils.tensorboard import SummaryWriter
 import random
 import numpy as np
+import plotly.express as px
 
 from src.config import (
     SPLITS_DIR,
@@ -49,7 +51,7 @@ class BYOLDataLoader(torch.utils.data.DataLoader):
         self.dataset.epoch = epoch
 
 
-def train_byol(run_dir, resume=False):
+def train_byol(run_dir, resume=False, custom_resnet=False):
     """
     Trains the BYOL model and saves checkpoints and TensorBoard logs.
     Can resume training from a saved checkpoint if resume=True.
@@ -64,7 +66,7 @@ def train_byol(run_dir, resume=False):
     writer = SummaryWriter(log_dir=tb_log_dir)
 
     # Initialize the BYOL model
-    base_encoder, feature_dim = get_base_encoder(pretrained=True)
+    base_encoder, feature_dim = get_base_encoder(pretrained=True, custom_resnet=custom_resnet)
     byol_model = BYOL(base_encoder=base_encoder, feature_dim=feature_dim)
 
     # Move the model to the specified device
@@ -163,6 +165,7 @@ def train_byol(run_dir, resume=False):
             # Update progress bar with current batch loss
             progress_bar.set_postfix({"Batch Loss": loss.item()})
 
+
         print(f"Epoch {epoch} completed.")
 
         # Calculate average loss for the epoch
@@ -231,6 +234,9 @@ def evaluate_model(model, test_loader, device):
     class_correct = {}
     class_total = {}
 
+    all_preds = []
+    all_labels = []
+
     with torch.no_grad():
         for inputs, labels in tqdm(
             test_loader, desc="Evaluating on test set", leave=True
@@ -246,7 +252,10 @@ def evaluate_model(model, test_loader, device):
             _, predicted = torch.max(outputs.data, 1)
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
-
+            preds = [p.item() for p in predicted]
+            
+            all_preds.extend(preds)
+            all_labels.extend([l.item() for l in labels])
             # Calculate per-class accuracy
             for label, pred in zip(labels, predicted):
                 label_item = label.item()
@@ -256,7 +265,9 @@ def evaluate_model(model, test_loader, device):
                 class_total[label_item] += 1
                 if label_item == pred.item():
                     class_correct[label_item] += 1
-
+    
+            
+        
     # Calculate metrics
     test_accuracy = 100 * correct / total
     avg_test_loss = test_loss / len(test_loader)
@@ -266,7 +277,18 @@ def evaluate_model(model, test_loader, device):
         class_idx: 100 * class_correct[class_idx] / class_total[class_idx]
         for class_idx in class_correct.keys()
     }
+    cm = confusion_matrix(all_labels, all_preds)
 
+# Plot with Plotly
+    fig_cm = px.imshow(cm,
+                    text_auto=True,
+                    color_continuous_scale='Blues',
+                    labels=dict(x="Predicted", y="Actual", color="Count"),
+                    x=[f"Class {i}" for i in range(cm.shape[1])],
+                    y=[f"Class {i}" for i in range(cm.shape[0])])
+
+    fig_cm.update_layout(title="Confusion Matrix", xaxis_title="Predicted Label", yaxis_title="True Label")
+    fig_cm.show()
     return test_accuracy, avg_test_loss, per_class_accuracy
 
 
