@@ -51,7 +51,7 @@ class BYOLDataLoader(torch.utils.data.DataLoader):
         self.dataset.epoch = epoch
 
 
-def train_byol(run_dir, resume=False):
+def train_byol(run_dir, resume=False, custom_resnet=False):
     """
     Trains the BYOL model and saves checkpoints and TensorBoard logs.
     Can resume training from a saved checkpoint if resume=True.
@@ -66,7 +66,7 @@ def train_byol(run_dir, resume=False):
     writer = SummaryWriter(log_dir=tb_log_dir)
 
     # Initialize the BYOL model
-    base_encoder, feature_dim = get_base_encoder(pretrained=True)
+    base_encoder, feature_dim = get_base_encoder(pretrained=True, custom_resnet=custom_resnet)
     byol_model = BYOL(base_encoder=base_encoder, feature_dim=feature_dim)
 
     # Move the model to the specified device
