@@ -18,7 +18,7 @@ TEST_RATIO = 0.15
 
 # DataLoader parameters
 BATCH_SIZE_BYOL = 64
-BATCH_SIZE_SUPERVISED = 16
+BATCH_SIZE_SUPERVISED = 32
 
 # Training settings
 NUM_EPOCHS = 1
