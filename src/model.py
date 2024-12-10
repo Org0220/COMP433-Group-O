@@ -159,7 +159,7 @@ class BYOL(nn.Module):
         return loss
 
 
-def get_base_encoder(pretrained=True, custom_resnet=True):
+def get_base_encoder(pretrained=True, custom_resnet=False):
     """
     Initializes the ResNet encoder and returns it along with its feature dimension.
 

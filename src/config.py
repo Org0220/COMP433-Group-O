@@ -5,7 +5,7 @@ import torch
 BASE_DIR = os.getcwd()
 # Data directories
 DATA_DIR = f'{BASE_DIR}\\data'
-IMAGES_DIR = f'{BASE_DIR}\\Sliced_Images'  # Update as needed
+IMAGES_DIR = f'{BASE_DIR}\\data\\Sliced_Images'  # Update as needed 
 LABELS_FILE = os.path.join(DATA_DIR, 'image_class_mapping.csv')
 
 # Splits directory
@@ -18,7 +18,7 @@ TEST_RATIO = 0.15
 
 # DataLoader parameters
 BATCH_SIZE_BYOL = 64
-BATCH_SIZE_SUPERVISED = 16
+BATCH_SIZE_SUPERVISED = 32
 
 # Training settings
 NUM_EPOCHS = 1
