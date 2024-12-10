@@ -5,7 +5,7 @@ import torch
 BASE_DIR = os.getcwd()
 # Data directories
 DATA_DIR = f'{BASE_DIR}\\data'
-IMAGES_DIR = f'{BASE_DIR}\\Sliced_Images'  # Update as needed
+IMAGES_DIR = f'{BASE_DIR}\\data\\Sliced_Images'  # Update as needed 
 LABELS_FILE = os.path.join(DATA_DIR, 'image_class_mapping.csv')
 
 # Splits directory
