@@ -292,7 +292,7 @@ def evaluate_model(model, test_loader, device):
     return test_accuracy, avg_test_loss, per_class_accuracy
 
 
-def train_supervised(run_dir, resume=False, num_classes=7, pretrained=True):
+def train_supervised(run_dir, resume=False, num_classes=7, pretrained=True, freeze_layers=None):
     """
     Trains the model in supervised fashion and saves checkpoints and TensorBoard logs.
 
@@ -301,6 +301,7 @@ def train_supervised(run_dir, resume=False, num_classes=7, pretrained=True):
         resume (bool): Whether to resume training from the last checkpoint.
         num_classes (int): Number of target classes.
         pretrained (bool): Whether to use ImageNet pretrained weights if BYOL weights fail to load.
+        freeze_layers (str, optional): Which layers to freeze ('all', 'partial', or None)
     """
     # Initialize TensorBoard SummaryWriter
     tb_log_dir = os.path.join(run_dir, "tensorboard_logs_supervised")
@@ -358,10 +359,13 @@ def train_supervised(run_dir, resume=False, num_classes=7, pretrained=True):
         else:
             print("Using random initialization...")
 
-    # Initialize the supervised model with the loaded encoder
-    supervised_model = SupervisedModel(base_encoder, feature_dim, num_classes).to(
-        DEVICE
-    )
+    # Initialize the supervised model with the loaded encoder and freezing option
+    supervised_model = SupervisedModel(
+        base_encoder, 
+        feature_dim, 
+        num_classes,
+        freeze_layers=freeze_layers
+    ).to(DEVICE)
 
     # Initialize optimizer
     optimizer = optim.Adam(

@@ -96,12 +96,31 @@ def main():
             # Continue BYOL training
             trained_model = train_byol(run_dir, resume=True)
         elif mode_input == "2":
+            # Ask user about layer freezing
+            freeze_option = input(
+                "Choose layer freezing option:\n"
+                "[1] No freezing\n"
+                "[2] Freeze all encoder layers\n"
+                "[3] Freeze first few layers\n"
+                "Choice: "
+            ).strip()
+            
+            freeze_layers = {
+                "1": None,
+                "2": "all",
+                "3": "partial"
+            }.get(freeze_option)
+            
+            if freeze_layers is None and freeze_option != "1":
+                print("Invalid freezing option. Proceeding with no layer freezing.")
+            
             # Start Supervised Training
             trained_model = train_supervised(
                 run_dir, 
                 resume=True, 
                 num_classes=7,
-                pretrained=True
+                pretrained=True,
+                freeze_layers=freeze_layers
             )
     else:
         # Start BYOL training for new run

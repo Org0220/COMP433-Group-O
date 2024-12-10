@@ -7,7 +7,7 @@ import copy
 
 
 class SupervisedModel(nn.Module):
-    def __init__(self, encoder, feature_dim, num_classes):
+    def __init__(self, encoder, feature_dim, num_classes, freeze_layers=None):
         """
         Initializes the supervised model by attaching a classifier head to the encoder.
 
@@ -15,10 +15,45 @@ class SupervisedModel(nn.Module):
             encoder (nn.Module): The pretrained encoder (from BYOL).
             feature_dim (int): Dimensionality of the encoder's output features.
             num_classes (int): Number of target classes.
+            freeze_layers (str, optional): Which layers to freeze:
+                - 'all': Freeze entire encoder
+                - 'partial': Freeze first few layers
+                - None: Don't freeze any layers (default)
         """
         super(SupervisedModel, self).__init__()
         self.encoder = encoder
         self.classifier = nn.Linear(feature_dim, num_classes)
+        
+        # Apply freezing strategy
+        self.freeze_layers(freeze_layers)
+
+    def freeze_layers(self, freeze_option):
+        """
+        Freezes specified layers of the encoder.
+        
+        Args:
+            freeze_option (str): Which layers to freeze
+        """
+        if freeze_option is None:
+            return
+        
+        if freeze_option == 'all':
+            # Freeze all encoder layers
+            for param in self.encoder.parameters():
+                param.requires_grad = False
+                
+        elif freeze_option == 'partial':
+            # Freeze first few layers (typically up to layer3 in ResNet)
+            layers_to_freeze = [
+                self.encoder.conv1,
+                self.encoder.bn1,
+                self.encoder.layer1,
+                self.encoder.layer2,
+                self.encoder.layer3
+            ]
+            for layer in layers_to_freeze:
+                for param in layer.parameters():
+                    param.requires_grad = False
 
     def forward(self, x):
         """
