@@ -11,6 +11,7 @@ from torch.utils.tensorboard import SummaryWriter
 import random
 import numpy as np
 import plotly.express as px
+from sklearn.metrics import f1_score, precision_score, recall_score
 
 from src.config import (
     SPLITS_DIR,
@@ -21,6 +22,8 @@ from src.config import (
     DEVICE,
     NUM_EPOCHS,
     LEARNING_RATE,
+    LEARNING_RATE_FROZEN,
+    LEARNING_RATE_UNFROZEN,
 )
 from src.datasets import BYOLDataset, LabeledDataset
 from src.model import BYOL, SupervisedModel, get_base_encoder
@@ -221,9 +224,7 @@ def evaluate_model(model, test_loader, device):
         device (torch.device): Device to run evaluation on
 
     Returns:
-        float: Test accuracy
-        float: Test loss
-        dict: Per-class accuracies
+        dict: Dictionary containing various evaluation metrics
     """
     model.eval()
     test_loss = 0
@@ -238,9 +239,7 @@ def evaluate_model(model, test_loader, device):
     all_labels = []
 
     with torch.no_grad():
-        for inputs, labels in tqdm(
-            test_loader, desc="Evaluating on test set", leave=True
-        ):
+        for inputs, labels in tqdm(test_loader, desc="Evaluating on test set", leave=True):
             inputs = inputs.to(device)
             labels = labels.to(device)
 
@@ -252,10 +251,11 @@ def evaluate_model(model, test_loader, device):
             _, predicted = torch.max(outputs.data, 1)
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
-            preds = [p.item() for p in predicted]
             
-            all_preds.extend(preds)
-            all_labels.extend([l.item() for l in labels])
+            # Store predictions and labels for metric calculation
+            all_preds.extend(predicted.cpu().numpy())
+            all_labels.extend(labels.cpu().numpy())
+
             # Calculate per-class accuracy
             for label, pred in zip(labels, predicted):
                 label_item = label.item()
@@ -265,21 +265,24 @@ def evaluate_model(model, test_loader, device):
                 class_total[label_item] += 1
                 if label_item == pred.item():
                     class_correct[label_item] += 1
-    
-            
-        
+
     # Calculate metrics
     test_accuracy = 100 * correct / total
     avg_test_loss = test_loss / len(test_loader)
-
-    # Calculate per-class accuracies
     per_class_accuracy = {
         class_idx: 100 * class_correct[class_idx] / class_total[class_idx]
         for class_idx in class_correct.keys()
     }
+
+    # Calculate additional metrics
+    f1 = f1_score(all_labels, all_preds, average='weighted')
+    precision = precision_score(all_labels, all_preds, average='weighted')
+    recall = recall_score(all_labels, all_preds, average='weighted')
+
+    # Create confusion matrix
     cm = confusion_matrix(all_labels, all_preds)
 
-# Plot with Plotly
+    # Plot confusion matrix
     fig_cm = px.imshow(cm,
                     text_auto=True,
                     color_continuous_scale='Blues',
@@ -289,7 +292,15 @@ def evaluate_model(model, test_loader, device):
 
     fig_cm.update_layout(title="Confusion Matrix", xaxis_title="Predicted Label", yaxis_title="True Label")
     fig_cm.show()
-    return test_accuracy, avg_test_loss, per_class_accuracy
+
+    return {
+        'accuracy': test_accuracy,
+        'loss': avg_test_loss,
+        'f1_score': f1,
+        'precision': precision,
+        'recall': recall,
+        'per_class_accuracy': per_class_accuracy
+    }
 
 
 def train_supervised(run_dir, resume=False, num_classes=7, pretrained=True, freeze_layers=None):
@@ -367,9 +378,19 @@ def train_supervised(run_dir, resume=False, num_classes=7, pretrained=True, free
         freeze_layers=freeze_layers
     ).to(DEVICE)
 
-    # Initialize optimizer
+    # Choose learning rate based on freezing strategy
+    if freeze_layers in ['all', 'partial']:
+        learning_rate = LEARNING_RATE_FROZEN
+        print(f"Using frozen learning rate: {LEARNING_RATE_FROZEN}")
+    else:
+        learning_rate = LEARNING_RATE_UNFROZEN
+        print(f"Using unfrozen learning rate: {LEARNING_RATE_UNFROZEN}")
+
+    # Initialize optimizer with appropriate learning rate
     optimizer = optim.Adam(
-        supervised_model.parameters(), lr=LEARNING_RATE, weight_decay=1e-4
+        supervised_model.parameters(), 
+        lr=learning_rate,  # Use the selected learning rate
+        weight_decay=1e-4
     )
 
     # Initialize scheduler
@@ -572,36 +593,43 @@ def train_supervised(run_dir, resume=False, num_classes=7, pretrained=True, free
     )
 
     # Evaluate on test set
-    test_accuracy, test_loss, per_class_accuracy = evaluate_model(
-        supervised_model, test_loader, DEVICE
-    )
+    test_metrics = evaluate_model(supervised_model, test_loader, DEVICE)
 
     # Print test results
     print("\nTest Set Evaluation Results:")
-    print(f"Overall Test Accuracy: {test_accuracy:.2f}%")
-    print(f"Overall Test Loss: {test_loss:.4f}")
+    print(f"Overall Test Accuracy: {test_metrics['accuracy']:.2f}%")
+    print(f"Overall Test Loss: {test_metrics['loss']:.4f}")
+    print(f"Overall Test F1 Score: {test_metrics['f1_score']:.4f}")
+    print(f"Overall Test Precision: {test_metrics['precision']:.4f}")
+    print(f"Overall Test Recall: {test_metrics['recall']:.4f}")
     print("\nPer-class Test Accuracies:")
 
     # Get class names from the dataset
     class_names = {v: k for k, v in test_dataset.class_to_idx.items()}
-    for class_idx, accuracy in per_class_accuracy.items():
+    for class_idx, accuracy in test_metrics['per_class_accuracy'].items():
         class_name = class_names[class_idx]
         print(f"{class_name}: {accuracy:.2f}%")
 
-    # Save test results to a file in the run directory
+    # Save test results to a file
     results_file = os.path.join(run_dir, "test_results.txt")
     with open(results_file, "w") as f:
-        f.write(f"Test Accuracy: {test_accuracy:.2f}%\n")
-        f.write(f"Test Loss: {test_loss:.4f}\n\n")
+        f.write(f"Test Accuracy: {test_metrics['accuracy']:.2f}%\n")
+        f.write(f"Test Loss: {test_metrics['loss']:.4f}\n")
+        f.write(f"Test F1 Score: {test_metrics['f1_score']:.4f}\n")
+        f.write(f"Test Precision: {test_metrics['precision']:.4f}\n")
+        f.write(f"Test Recall: {test_metrics['recall']:.4f}\n\n")
         f.write("Per-class Test Accuracies:\n")
-        for class_idx, accuracy in per_class_accuracy.items():
+        for class_idx, accuracy in test_metrics['per_class_accuracy'].items():
             class_name = class_names[class_idx]
             f.write(f"{class_name}: {accuracy:.2f}%\n")
 
     # Log final test metrics to tensorboard
-    writer.add_scalar("Test/Accuracy", test_accuracy, 0)
-    writer.add_scalar("Test/Loss", test_loss, 0)
-    for class_idx, accuracy in per_class_accuracy.items():
+    writer.add_scalar("Test/Accuracy", test_metrics['accuracy'], 0)
+    writer.add_scalar("Test/Loss", test_metrics['loss'], 0)
+    writer.add_scalar("Test/F1_Score", test_metrics['f1_score'], 0)
+    writer.add_scalar("Test/Precision", test_metrics['precision'], 0)
+    writer.add_scalar("Test/Recall", test_metrics['recall'], 0)
+    for class_idx, accuracy in test_metrics['per_class_accuracy'].items():
         writer.add_scalar(f"Test/Class_{class_idx}_Accuracy", accuracy, 0)
 
     return supervised_model
