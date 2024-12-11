@@ -53,6 +53,21 @@ class BYOLDataLoader(torch.utils.data.DataLoader):
     def set_epoch(self, epoch):
         self.dataset.epoch = epoch
 
+def save_byol_model_copy(model, run_dir):
+    # Create byol_models directory if it doesn't exist
+    byol_models_dir = os.path.join('data', 'byol_models')
+    os.makedirs(byol_models_dir, exist_ok=True)
+    
+    # Extract run name from run_dir (e.g. "test1" from "runs/test1")
+    run_name = os.path.basename(run_dir)
+    
+    # Create model filename
+    model_filename = f"byol_{run_name}.pth"
+    model_path = os.path.join(byol_models_dir, model_filename)
+    
+    # Save model copy
+    torch.save(model.state_dict(), model_path)
+    print(f"\nSaved BYOL model copy to: {model_path}")
 
 def train_byol(run_dir, resume=False, custom_resnet=False):
     """
@@ -211,6 +226,9 @@ def train_byol(run_dir, resume=False, custom_resnet=False):
     except Exception as e:
         print(f"An error occurred while loading the model: {e}")
 
+    # Save a copy of the BYOL model
+    save_byol_model_copy(byol_model, run_dir)
+    
     return byol_model
 
 
