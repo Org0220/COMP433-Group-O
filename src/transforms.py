@@ -28,10 +28,15 @@ byol_transform = transforms.Compose([
 
 # Classification-specific augmentations with deterministic transforms
 train_transform = transforms.Compose([
-    DeterministicRandomResizedCrop(224, scale=(0.2, 1.0)),
-    DeterministicRandomHorizontalFlip(),
+    transforms.RandomResizedCrop(224, scale=(0.8, 1.0)),
+    transforms.RandomHorizontalFlip(),
+    transforms.RandomAffine(degrees=15, translate=(0.1, 0.1)),
+    transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2),
+    transforms.RandomApply([transforms.GaussianBlur(3)], p=0.3),
     transforms.ToTensor(),
-    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+    transforms.Normalize(mean=[0.485, 0.456, 0.406], 
+                        std=[0.229, 0.224, 0.225]),
+    transforms.RandomErasing(p=0.2)
 ])
 
 # Validation and Test transforms (already deterministic)
