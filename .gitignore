@@ -5,6 +5,7 @@ train/
 val/
 .idea/
 data/
+data/splits/
 
 # Run directories
 runs/
