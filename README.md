@@ -1,6 +1,6 @@
 # Project Overview
 
-We're working on a project for image classification of tissue images into the following classes:
+Our project provides classification for tissue images into the following classes:
 
 - **Preview Tiles Small Fragmented Tissue**
 - **Preview Tiles Small One Piece Tissue**
@@ -10,13 +10,6 @@ We're working on a project for image classification of tissue images into the fo
 - **Preview Tiles_Ink Marks**
 - **Preview Tiles_Large Solid Tissue**
 
-Tiles Small Fragmented Tissue
-Tiles Small One Piece Tissue
-Tiles with No Tissue
-Tiles with Some Faint Tissue
-Tiles Faint Tissue
-Tiles Ink Marks
-Tiles Large Solid Tissue
 
 This project leverages a semi-supervised approach to efficiently use unlabeled data for representation learning and then applies a classification head on top for supervised learning on labeled data.
 
@@ -64,7 +57,11 @@ We are using the **Bootstrap Your Own Latent (BYOL)** methodology on top of an e
     ...
    ```
 4. **Training**:
-   - run the main.py and it will ask you to enter a name for your working directory, then it will start training the model.
+   - run the main.py and it will ask you to enter a name for your run
+     ![image](https://github.com/user-attachments/assets/d81810bb-f5cf-4219-899d-bc85766dd5a8)
    - The model will be saved in the runs directory with the name you entered.
-   - The training process will take a long time, so it is recommended to run it on a machine with a GPU.
+   - If you enter a name of a model you have already trained, you will be given the option to continue BYOL training or to continue to supervised learning.
+
+     ![image](https://github.com/user-attachments/assets/068e0075-ecbd-43ca-b791-74bce80c7523)
+   - The training process will take a long time, so it is recommended to run it on a machine with a GPU, and have [CUDA with pytorch ](https://pytorch.org/get-started/locally/) enabled.
 5. **Evaluation**:
