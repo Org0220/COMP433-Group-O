@@ -18,10 +18,10 @@ TEST_RATIO = 0.15
 
 # DataLoader parameters
 BATCH_SIZE_BYOL = 64
-BATCH_SIZE_SUPERVISED = 32  # or 64 depending on GPU memory
+BATCH_SIZE_SUPERVISED = 16
 
 # Training settings
-NUM_EPOCHS = 1
+NUM_EPOCHS = 150
 LEARNING_RATE = 1e-4
 LEARNING_RATE_UNFROZEN = 1e-4
 LEARNING_RATE_FROZEN = 1e-3  # Higher learning rate when encoder is frozen

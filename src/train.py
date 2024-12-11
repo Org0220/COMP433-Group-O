@@ -28,7 +28,11 @@ from src.config import (
 from src.datasets import BYOLDataset, LabeledDataset
 from src.model import BYOL, SupervisedModel, get_base_encoder
 from src.utils import EarlyStopping, WorkerInitializer
-from src.transforms import byol_transform
+from src.transforms import (
+    BYOLTransform,
+    train_transform,
+    val_test_transform
+)
 from src.utils import set_seed
 
 
@@ -110,7 +114,9 @@ def train_byol(run_dir, resume=False, custom_resnet=False):
     # Create BYOL training dataset and DataLoader
     pretrain_split_file = os.path.join(SPLITS_DIR, "train_unlabeled.txt")
     byol_train_dataset = BYOLDataset(
-        image_dir=IMAGES_DIR, split_file=pretrain_split_file, transform=byol_transform
+        image_dir=IMAGES_DIR, 
+        split_file=pretrain_split_file, 
+        transform=BYOLTransform()  # Create an instance of BYOLTransform
     )
 
     # Create deterministic generator with fixed seed
@@ -432,14 +438,14 @@ def train_supervised(run_dir, resume=False, num_classes=7, pretrained=True, free
         image_dir=IMAGES_DIR,
         labels_csv=LABELS_FILE,
         split_file=train_split_file,
-        transform=byol_transform,
+        transform=BYOLTransform(),
     )
 
     supervised_val_dataset = LabeledDataset(
         image_dir=IMAGES_DIR,
         labels_csv=LABELS_FILE,
         split_file=val_split_file,
-        transform=byol_transform,
+        transform=BYOLTransform(),
     )
 
     # Create worker initializer with fixed seed
@@ -599,7 +605,7 @@ def train_supervised(run_dir, resume=False, num_classes=7, pretrained=True, free
         image_dir=IMAGES_DIR,
         labels_csv=LABELS_FILE,
         split_file=test_split_file,
-        transform=byol_transform,
+        transform=BYOLTransform(),
     )
 
     test_loader = torch.utils.data.DataLoader(
