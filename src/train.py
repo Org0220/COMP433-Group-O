@@ -243,6 +243,10 @@ def evaluate_model(model, test_loader, device):
         float: Test loss
         dict: Per-class accuracies
     """
+    import matplotlib.pyplot as plt
+    from sklearn.metrics import roc_curve, auc, precision_recall_curve
+    from sklearn.preprocessing import label_binarize
+
     model.eval()
     test_loss = 0
     correct = 0
@@ -254,6 +258,7 @@ def evaluate_model(model, test_loader, device):
 
     all_preds = []
     all_labels = []
+    all_probs = []
 
     with torch.no_grad():
         for inputs, labels in tqdm(
@@ -267,13 +272,15 @@ def evaluate_model(model, test_loader, device):
                 loss = nn.CrossEntropyLoss()(outputs, labels)
 
             test_loss += loss.item()
+            probs = torch.softmax(outputs, dim=1)
             _, predicted = torch.max(outputs.data, 1)
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
-            preds = [p.item() for p in predicted]
             
-            all_preds.extend(preds)
-            all_labels.extend([l.item() for l in labels])
+            all_probs.extend(probs.cpu().numpy())
+            all_preds.extend(predicted.cpu().numpy())
+            all_labels.extend(labels.cpu().numpy())
+
             # Calculate per-class accuracy
             for label, pred in zip(labels, predicted):
                 label_item = label.item()
@@ -295,20 +302,65 @@ def evaluate_model(model, test_loader, device):
         class_idx: 100 * class_correct[class_idx] / class_total[class_idx]
         for class_idx in class_correct.keys()
     }
+
+    # Plot confusion matrix
     cm = confusion_matrix(all_labels, all_preds)
-
-# Plot with Plotly
-    fig_cm = px.imshow(cm,
-                    text_auto=True,
-                    color_continuous_scale='Blues',
-                    labels=dict(x="Predicted", y="Actual", color="Count"),
-                    x=[f"Class {i}" for i in range(cm.shape[1])],
-                    y=[f"Class {i}" for i in range(cm.shape[0])])
-
-    fig_cm.update_layout(title="Confusion Matrix", xaxis_title="Predicted Label", yaxis_title="True Label")
+    fig_cm = px.imshow(
+        cm,
+        text_auto=True,
+        color_continuous_scale="Blues",
+        labels=dict(x="Predicted", y="Actual", color="Count"),
+        x=[f"Class {i}" for i in range(cm.shape[1])],
+        y=[f"Class {i}" for i in range(cm.shape[0])],
+    )
+    fig_cm.update_layout(
+        title="Confusion Matrix",
+        xaxis_title="Predicted Label",
+        yaxis_title="True Label",
+    )
     fig_cm.show()
-    return test_accuracy, avg_test_loss, per_class_accuracy
 
+    # Plot per-class accuracy bar chart
+    plt.figure(figsize=(10, 5))
+    plt.bar(per_class_accuracy.keys(), per_class_accuracy.values(), color="skyblue")
+    plt.xlabel("Class")
+    plt.ylabel("Accuracy (%)")
+    plt.title("Per-Class Accuracy")
+    plt.xticks(range(len(per_class_accuracy)))
+    plt.show()
+
+    # Compute ROC curve and ROC area for each class
+    classes = list(class_correct.keys())
+    all_labels_bin = label_binarize(all_labels, classes=classes)
+    roc_auc = {}
+    plt.figure(figsize=(10, 8))
+    for i, class_label in enumerate(classes):
+        fpr, tpr, _ = roc_curve(all_labels_bin[:, i], np.array(all_probs)[:, i])
+        roc_auc[class_label] = auc(fpr, tpr)
+        plt.plot(fpr, tpr, label=f"Class {class_label} (AUC = {roc_auc[class_label]:.2f})")
+
+    plt.plot([0, 1], [0, 1], "k--", lw=2)
+    plt.xlabel("False Positive Rate")
+    plt.ylabel("True Positive Rate")
+    plt.title("ROC Curve")
+    plt.legend(loc="lower right")
+    plt.show()
+
+    # Compute Precision-Recall curve for each class
+    plt.figure(figsize=(10, 8))
+    for i, class_label in enumerate(classes):
+        precision, recall, _ = precision_recall_curve(
+            all_labels_bin[:, i], np.array(all_probs)[:, i]
+        )
+        plt.plot(recall, precision, label=f"Class {class_label}")
+
+    plt.xlabel("Recall")
+    plt.ylabel("Precision")
+    plt.title("Precision-Recall Curve")
+    plt.legend(loc="lower left")
+    plt.show()
+
+    return test_accuracy, avg_test_loss, per_class_accuracy
 
 def train_supervised(run_dir, resume=False, num_classes=7, pretrained=True):
     """
