@@ -101,7 +101,7 @@ def train_byol(run_dir, resume=False, custom_resnet=False):
 
     # Initialize EarlyStopping with run_dir for saving the best model
     early_stopping = EarlyStopping(
-        patience=18, verbose=True, delta=0.001, run_dir=run_dir
+        patience=15, verbose=True, delta=0.001, run_dir=run_dir
     )
 
     # Initialize GradScaler for mixed precision with device specified
