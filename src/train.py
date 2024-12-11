@@ -246,6 +246,7 @@ def evaluate_model(model, test_loader, device):
     import matplotlib.pyplot as plt
     from sklearn.metrics import roc_curve, auc, precision_recall_curve
     from sklearn.preprocessing import label_binarize
+    from collections import Counter
 
     model.eval()
     test_loss = 0
@@ -260,12 +261,18 @@ def evaluate_model(model, test_loader, device):
     all_labels = []
     all_probs = []
 
+    # For class distribution
+    class_count = Counter()
+
     with torch.no_grad():
         for inputs, labels in tqdm(
             test_loader, desc="Evaluating on test set", leave=True
         ):
             inputs = inputs.to(device)
             labels = labels.to(device)
+
+            # Count class distribution
+            class_count.update(labels.cpu().numpy())
 
             with autocast(device_type=device.type):
                 outputs = model(inputs)
@@ -320,15 +327,6 @@ def evaluate_model(model, test_loader, device):
     )
     fig_cm.show()
 
-    # Plot per-class accuracy bar chart
-    plt.figure(figsize=(10, 5))
-    plt.bar(per_class_accuracy.keys(), per_class_accuracy.values(), color="skyblue")
-    plt.xlabel("Class")
-    plt.ylabel("Accuracy (%)")
-    plt.title("Per-Class Accuracy")
-    plt.xticks(range(len(per_class_accuracy)))
-    plt.show()
-
     # Compute ROC curve and ROC area for each class
     classes = list(class_correct.keys())
     all_labels_bin = label_binarize(all_labels, classes=classes)
@@ -358,6 +356,14 @@ def evaluate_model(model, test_loader, device):
     plt.ylabel("Precision")
     plt.title("Precision-Recall Curve")
     plt.legend(loc="lower left")
+    plt.show()
+
+    # Plot class distribution
+    plt.figure(figsize=(10, 6))
+    plt.bar(class_count.keys(), class_count.values(), color='skyblue')
+    plt.xlabel('Class')
+    plt.ylabel('Number of Images')
+    plt.title('Class Distribution in Test Set')
     plt.show()
 
     return test_accuracy, avg_test_loss, per_class_accuracy
