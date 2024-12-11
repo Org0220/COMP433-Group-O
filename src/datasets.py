@@ -4,6 +4,7 @@ from torch.utils.data import Dataset
 from PIL import Image
 import torch
 import hashlib
+from src.transforms import BYOLTransform
 
 
 class BYOLDataset(Dataset):
@@ -41,24 +42,9 @@ class BYOLDataset(Dataset):
                 image = self.transform(image)
             return image, torch.tensor(label, dtype=torch.long)
 
-        # For BYOL, create two different views with epoch-aware seeding
+        # For BYOL, create two different views
         if self.transform:
-            # Generate unique seeds for this (epoch, image) pair using hashlib for determinism
-            seed1 = int(
-                hashlib.sha256(f"{self.epoch}_{idx}_view1".encode()).hexdigest(), 16
-            ) % (2**32)
-            seed2 = int(
-                hashlib.sha256(f"{self.epoch}_{idx}_view2".encode()).hexdigest(), 16
-            ) % (2**32)
-
-            # Create first view
-            torch.manual_seed(seed1)
-            view1 = self.transform(image)
-
-            # Create second view
-            torch.manual_seed(seed2)
-            view2 = self.transform(image)
-
+            view1, view2 = self.transform(image)  # The transform should be an instance of BYOLTransform
             return view1, view2
 
         return image, image
