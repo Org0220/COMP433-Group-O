@@ -458,7 +458,7 @@ def evaluate_model(model, test_loader, device):
 
     return test_accuracy, avg_test_loss, per_class_accuracy
 
-def train_supervised(run_dir, resume=False, num_classes=7, pretrained=True):
+def train_supervised(run_dir, resume=False, num_classes=7, pretrained=True, freeze_layers=None):
     """
     Trains the model in supervised fashion and saves checkpoints and TensorBoard logs.
 
@@ -569,14 +569,14 @@ def train_supervised(run_dir, resume=False, num_classes=7, pretrained=True):
         image_dir=IMAGES_DIR,
         labels_csv=LABELS_FILE,
         split_file=train_split_file,
-        transform=BYOLTransform(),
+        transform=train_transform,  # Use train_transform for supervised training
     )
 
     supervised_val_dataset = LabeledDataset(
         image_dir=IMAGES_DIR,
         labels_csv=LABELS_FILE,
         split_file=val_split_file,
-        transform=BYOLTransform(),
+        transform=val_test_transform,  # Use val_test_transform for validation
     )
 
     # Create worker initializer with fixed seed
@@ -736,7 +736,7 @@ def train_supervised(run_dir, resume=False, num_classes=7, pretrained=True):
         image_dir=IMAGES_DIR,
         labels_csv=LABELS_FILE,
         split_file=test_split_file,
-        transform=BYOLTransform(),
+        transform=val_test_transform,  # Use val_test_transform for testing
     )
 
     test_loader = torch.utils.data.DataLoader(

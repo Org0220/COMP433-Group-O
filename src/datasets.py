@@ -86,6 +86,10 @@ class LabeledDataset(Dataset):
         label = self.class_to_idx[class_name]
 
         if self.transform:
-            image = self.transform(image)
+            # Check if transform is BYOLTransform
+            if isinstance(self.transform, BYOLTransform):
+                image, _ = self.transform(image)  # Only use first view if it's BYOLTransform
+            else:
+                image = self.transform(image)
 
         return image, torch.tensor(label, dtype=torch.long)

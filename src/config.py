@@ -21,10 +21,10 @@ BATCH_SIZE_BYOL = 64
 BATCH_SIZE_SUPERVISED = 16
 
 # Training settings
-NUM_EPOCHS = 150
+NUM_EPOCHS = 10
 LEARNING_RATE = 1e-4
 LEARNING_RATE_UNFROZEN = 1e-4
-LEARNING_RATE_FROZEN = 1e-3  # Higher learning rate when encoder is frozen
+LEARNING_RATE_FROZEN = 5e-4  # Higher learning rate when encoder is frozen
 SAVE_PATH = os.path.join(DATA_DIR, 'best_byol_model.pth')
 
 # Device configuration
