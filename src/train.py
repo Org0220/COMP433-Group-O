@@ -305,18 +305,29 @@ def evaluate_model(model, test_loader, device):
 
     # Plot confusion matrix
     cm = confusion_matrix(all_labels, all_preds)
+
+    # Custom class names
+    custom_labels = ["Preview Tiles Small Fragmented tissue", 
+                     "Preview Tiles Small One Piece Tissue", 
+                     "Preview Tiles with No Tissue",
+                     "Preview Tiles with Some Faint Tissue",
+                     "Preview Tiles_Faint Tissue",
+                     "Preview Tiles_Ink Marks",
+                     "Preview Tiles_Large Solid Tissue"]
+
+    # Create confusion matrix plot
     fig_cm = px.imshow(
         cm,
         text_auto=True,
         color_continuous_scale="Blues",
-        labels=dict(x="Predicted", y="Actual", color="Count"),
-        x=[f"Class {i}" for i in range(cm.shape[1])],
-        y=[f"Class {i}" for i in range(cm.shape[0])],
+       labels=dict(x="Predicted", y="Actual", color="Count"),
+       x=custom_labels,  # Custom x-axis labels
+        y=custom_labels,  # Custom y-axis labels
     )
     fig_cm.update_layout(
-        title="Confusion Matrix",
-        xaxis_title="Predicted Label",
-        yaxis_title="True Label",
+       title="Confusion Matrix",
+       xaxis_title="Predicted Label",
+       yaxis_title="True Label",
     )
     fig_cm.show()
 
