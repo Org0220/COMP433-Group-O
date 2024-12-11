@@ -21,7 +21,7 @@ BATCH_SIZE_BYOL = 64
 BATCH_SIZE_SUPERVISED = 16
 
 # Training settings
-NUM_EPOCHS = 10
+NUM_EPOCHS = 1
 LEARNING_RATE = 1e-4
 LEARNING_RATE_UNFROZEN = 1e-4
 LEARNING_RATE_FROZEN = 5e-4  # Higher learning rate when encoder is frozen
