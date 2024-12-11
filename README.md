@@ -54,11 +54,10 @@ We are using the **Bootstrap Your Own Latent (BYOL)** methodology on top of an e
    ```
 3. **Dataset Setup**:
    - The dataset should be provided by the Huron team.
-   - Put the folder with Sliced_Images inside the repository directory
+   - Put the folder with Sliced_Images inside the data directory
    - The folder structure should look like this:
    ```
     HURONPROJECT
-    ├── Sliced_Images
     ├── data
     ├── runs
     ├── src
