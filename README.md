@@ -56,6 +56,7 @@ We are using the **Bootstrap Your Own Latent (BYOL)** methodology on top of an e
     ├── src
     ...
    ```
+   - make sure to put this file in the data folder: https://drive.google.com/file/d/1M8l8b1WB66UIohbDBlUV2WDWIcz6nnAu/view?usp=sharing
 4. **Training**:
    - run the main.py and it will ask you to enter a name for your run
      ![image](https://github.com/user-attachments/assets/d81810bb-f5cf-4219-899d-bc85766dd5a8)
